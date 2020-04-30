@@ -1,0 +1,87 @@
+%programma per il popipopi
+clear all 
+close all
+clc
+
+% define parameters
+
+%physics parameters
+a1=0.20; %coeff ingresso
+a2=0.01; %coeff uscita
+s=0.10; %coeff sorgent in elemento 1
+
+%integration parameters
+n=15;   %n. elements of grid
+l=1;    %length of x axis
+%dt=0.5; %fixed stepintegration time increment
+dt=0.05;
+T=20;    % simulation time
+
+%plotting properties
+t_animation=10; %seconds
+
+%program
+
+%produce mesh
+mesh_x=linspace(0,l,n);
+
+% initialize element list
+properties=zeros(1,n);
+%matrix to store data output  (each row is a time instant freeze of the properties)
+% properties_matrix=zeros(1,n);
+properties_matrix=[];
+
+
+time_vec=[];
+%for tt=time_vec
+tt=0;
+
+while tt<T
+    %run through element list
+    dr=zeros(1,n);
+    Dt=[];
+    for ii=1:length(mesh_x)
+        if ii==1  %last element only gets from the one to his right
+            dr(ii)=dt*(a1*(properties(ii+1)-properties(ii)));
+        elseif (ii>1) && (ii<5)    % cells from QC going left (tip of root)
+            dr(ii)=dt*(a1*(properties(ii+1)-properties(ii))-a2*(properties(ii)-properties(ii-1)));
+        elseif ii==5    %QC cells only produe auxin: have source but no intake 
+            dr(ii)=dt*(s-a2*(properties(ii)-properties(ii+1)));
+        elseif ii==length(mesh_x) %last element has no flow going out on right
+            dr(ii)=dt*(-a1*(properties(ii)-properties(ii-1))); 
+        else %other elements
+            dr(ii)=dt*(-a1*(properties(ii)-properties(ii-1))-a2*(properties(ii)-properties(ii+1)));    
+        end
+    
+        dt_temp=properties(ii)./dr(ii);
+        
+        if dt_temp > 0    %cells at the extreem won't pass auxin untill they get some. Their zeros don't need to be considered in the "propensity evaluation"
+            dt_temp;
+            Dt(end+1)=dt_temp;
+        end
+        if length(Dt) == 0    %the first run may have all 0, in this case we start with an arbitrary time step op 0.05
+            Dt=[0.05];
+        end
+    end
+    dt=min(Dt)./2;
+    %update properties
+    properties=properties+dr;
+    %store quantity
+    properties_matrix=[properties_matrix; properties];
+    tt = tt+dt;
+    time_vec=[time_vec tt];
+end
+
+max_auxin = max(max(properties_matrix));
+
+%% plotting
+figure(1)
+for ii=1:length(properties_matrix(:,1)) 
+    
+    %plot(mesh_x, properties_matrix(ii,:)) %plot ith row i.e. 1 time instant
+    heatmap(properties_matrix(ii,:), 'ColorLimits',[0 max_auxin])
+    title(['simulation time=' num2str(time_vec(ii))])
+    %ylim([0 max(max(properties_matrix))])
+    pause(t_animation/length(properties_matrix(:,1)))
+end
+
